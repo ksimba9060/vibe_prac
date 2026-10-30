@@ -1473,3 +1473,249 @@ nav .search-icon {
     height: calc(100dvh - 122px - var(--statusbar-height));
   }
 }
+
+/* Device viewport: only the screen's content scrolls; chrome stays outside it. */
+:root {
+  --phone-width: 402px;
+  --phone-height: 874px;
+  --statusbar-height: 62px;
+}
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+body {
+  background: radial-gradient(
+    ellipse at 40% 15%,
+    #e1eee7 0%,
+    #e7e9ed 55%,
+    #d9dde4 100%
+  );
+}
+#app,
+#app:has(.map-content) {
+  width: 100%;
+  max-width: none;
+  height: 100dvh;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.device-stage {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+.device-footprint {
+  position: relative;
+  flex-shrink: 0;
+}
+.phone-device {
+  position: relative;
+  width: 426px;
+  height: 898px;
+  padding: 12px;
+  border-radius: 65px;
+  background: linear-gradient(
+    135deg,
+    #7c7f83 0%,
+    #292b2e 15%,
+    #0a0b0d 48%,
+    #52565b 85%,
+    #a0a3a6 100%
+  );
+  transform-origin: top left;
+  box-shadow:
+    0 35px 75px #25332c35,
+    0 5px 12px #101c2633,
+    inset 0 0 0 1px #d4d5d899,
+    inset 0 0 0 3px #1e2024,
+    inset 0 0 0 5px #53565a;
+}
+.phone-screen {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: var(--phone-width);
+  height: var(--phone-height);
+  overflow: hidden;
+  border-radius: 53px;
+  background: var(--bg);
+  isolation: isolate;
+  box-shadow: 0 0 0 3px #08090b;
+}
+.phone-buttons i {
+  position: absolute;
+  display: block;
+  width: 4px;
+  background: linear-gradient(90deg, #22252a, #96999f, #373b40);
+  border-radius: 3px;
+}
+.phone-buttons i:nth-child(1) {
+  left: -3px;
+  top: 145px;
+  height: 24px;
+}
+.phone-buttons i:nth-child(2) {
+  left: -3px;
+  top: 194px;
+  height: 51px;
+}
+.phone-buttons i:nth-child(3) {
+  left: -3px;
+  top: 260px;
+  height: 51px;
+}
+.phone-buttons i:nth-child(4) {
+  right: -3px;
+  top: 215px;
+  height: 78px;
+}
+.phone-screen > .iphone-statusbar {
+  position: relative;
+  top: auto;
+  z-index: 40;
+  flex: 0 0 var(--statusbar-height);
+  height: var(--statusbar-height);
+  padding: 7px 28px 0;
+  border-radius: 0;
+  background: var(--bg);
+}
+.phone-island {
+  position: absolute;
+  z-index: 60;
+  top: 17px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 91px;
+  height: 26px;
+  border-radius: 30px;
+  background: #08090b;
+  box-shadow: inset 0 0 2px #000;
+  pointer-events: none;
+}
+.phone-island span {
+  position: absolute;
+  right: 10px;
+  top: 9px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #244571, #09121e 55%, #030506);
+  border: 1px solid #121a25;
+}
+.phone-scroll {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  padding-bottom: 26px;
+  -webkit-overflow-scrolling: touch;
+}
+.phone-scroll::-webkit-scrollbar {
+  display: none;
+}
+.phone-scroll > header {
+  position: sticky;
+  top: 0;
+  border-radius: 0;
+  flex-shrink: 0;
+}
+.phone-screen:has(#phone-navigation nav) .phone-scroll {
+  padding-bottom: 116px;
+}
+.phone-screen #phone-navigation {
+  position: absolute;
+  inset: 0;
+  z-index: 45;
+  pointer-events: none;
+}
+.phone-screen nav {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 26px;
+  transform: none;
+  width: auto;
+  max-width: none;
+  height: 70px;
+  padding: 4px 8px;
+  pointer-events: auto;
+}
+.phone-screen #phone-overlays {
+  position: absolute;
+  inset: var(--statusbar-height) 0 0;
+  z-index: 70;
+  pointer-events: none;
+}
+.phone-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #18213766;
+  backdrop-filter: blur(5px);
+  padding: 20px;
+  pointer-events: auto;
+}
+.phone-modal-backdrop .location-dialog {
+  position: relative;
+  inset: auto;
+  margin: 0;
+  width: 100%;
+  max-width: 350px;
+  max-height: calc(100% - 40px);
+  overflow: auto;
+  border: 0;
+  border-radius: 22px;
+  box-sizing: border-box;
+}
+.phone-home-indicator {
+  position: absolute;
+  z-index: 80;
+  left: 50%;
+  bottom: 9px;
+  transform: translateX(-50%);
+  width: 132px;
+  height: 5px;
+  border-radius: 10px;
+  background: #17231e;
+  pointer-events: none;
+}
+.phone-screen #toast {
+  position: absolute;
+  left: 50%;
+  bottom: 108px;
+  width: max-content;
+  max-width: calc(100% - 40px);
+  text-align: center;
+  z-index: 90;
+}
+.phone-scroll .auth-screen {
+  min-height: calc(var(--phone-height) - var(--statusbar-height) - 30px);
+  padding-top: 32px;
+  padding-bottom: 35px;
+}
+.phone-scroll .fullmap {
+  height: calc(
+    var(--phone-height) - var(--statusbar-height) - 74px - 62px - 26px
+  );
+  min-height: 400px;
+}
+.phone-scroll .overview-map {
+  width: 100%;
+  max-width: 100%;
+}

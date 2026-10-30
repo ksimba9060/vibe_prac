@@ -1,7 +1,6 @@
-import { StatusBar } from "./components/StatusBar";
+import { PhoneShell } from "./components/PhoneShell";
 import { initializeNavigation, recordNavigation } from "./lib/navigation";
 import { useEffect, useSyncExternalStore } from "react";
-import { createPortal } from "react-dom";
 import {
   AppView,
   member,
@@ -28,7 +27,8 @@ export default function App() {
       if (location.hash !== "#write" && !member.reviewPending)
         member.clearPhotos();
       notify();
-      window.scrollTo(0, 0);
+      const scroll = document.getElementById("phone-scroll");
+      if (scroll) scroll.scrollTop = 0;
     };
     window.addEventListener("hashchange", navigate);
     if (!started) {
@@ -39,11 +39,9 @@ export default function App() {
   }, []);
   const dialog = getDialogContent();
   return (
-    <>
-      <StatusBar />
+    <PhoneShell>
       <AppView />
       {dialog && <Dialog onClose={clearDialogContent}>{dialog}</Dialog>}
-      {createPortal(<div id="toast" role="status" />, document.body)}
-    </>
+    </PhoneShell>
   );
 }

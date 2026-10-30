@@ -1,3 +1,4 @@
+import { PhoneNavigation } from "../components/PhoneNavigation";
 import { ProfileEdit } from "../components/ProfileEdit";
 import { navigateTo, goBack } from "../lib/navigation";
 import { AuthScreen } from "../components/AuthScreen";
@@ -2381,31 +2382,31 @@ export function AppView() {
       <main className={"content " + (page === "map" ? "map-content" : "")}>
         <View />
       </main>
-      {["write", "gallery", "reviews", "saved", "map"].includes(
-        page,
-      ) ? (
+      {["write", "gallery", "reviews", "saved", "map"].includes(page) ? (
         ""
       ) : (
-        <nav aria-label={"주 메뉴"}>
-          {React.Children.toArray(
-            [
-              ["home", "⌂", "홈"],
-              ["recommend", "⚒", "추천 리스트"],
-              ["search", searchIcon, "검색"],
-              ["profile", "ϟ", "건강 프로필"],
-            ].map(([p, icon, t]) => (
-              <button
-                className={active === p ? "active" : ""}
-                onClick={(event: any) => {
-                  go(p);
-                }}
-              >
-                <span>{icon}</span>
-                {t}
-              </button>
-            )),
-          )}
-        </nav>
+        <PhoneNavigation>
+          <nav aria-label={"주 메뉴"}>
+            {React.Children.toArray(
+              [
+                ["home", "⌂", "홈"],
+                ["recommend", "⚒", "추천 리스트"],
+                ["search", searchIcon, "검색"],
+                ["profile", "ϟ", "건강 프로필"],
+              ].map(([p, icon, t]) => (
+                <button
+                  className={active === p ? "active" : ""}
+                  onClick={(event: any) => {
+                    go(p);
+                  }}
+                >
+                  <span>{icon}</span>
+                  {t}
+                </button>
+              )),
+            )}
+          </nav>
+        </PhoneNavigation>
       )}
     </>
   );
