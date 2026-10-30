@@ -2381,7 +2381,7 @@ export function AppView() {
       <main className={"content " + (page === "map" ? "map-content" : "")}>
         <View />
       </main>
-      {["store", "write", "gallery", "reviews", "saved", "map"].includes(
+      {["write", "gallery", "reviews", "saved", "map"].includes(
         page,
       ) ? (
         ""

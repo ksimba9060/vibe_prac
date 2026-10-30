@@ -1,3 +1,4 @@
+import { StatusBar } from "./components/StatusBar";
 import { initializeNavigation, recordNavigation } from "./lib/navigation";
 import { useEffect, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
@@ -39,6 +40,7 @@ export default function App() {
   const dialog = getDialogContent();
   return (
     <>
+      <StatusBar />
       <AppView />
       {dialog && <Dialog onClose={clearDialogContent}>{dialog}</Dialog>}
       {createPortal(<div id="toast" role="status" />, document.body)}
