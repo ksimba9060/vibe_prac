@@ -13,11 +13,11 @@ export function AuthScreen({ member }: { member: MemberController }) {
     member.phase === "data-error"
       ? "연결 상태를 확인하고 다시 시도해 주세요."
       : member.message;
-  document.title = "로그인 · 그린플레이트";
+  document.title = "로그인 · Healeat";
   return (
     <main className={"auth-screen"}>
       <a className={"auth-brand"} href={"#"}>
-        {"♧ 그린플레이트"}
+        {"♧ Healeat"}
       </a>
       <span className={"pill mint"}>{"내 건강에 맞는 한 끼"}</span>
       <h1>{title}</h1>

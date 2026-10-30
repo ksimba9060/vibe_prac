@@ -1,3 +1,5 @@
+import { ProfileEdit } from "../components/ProfileEdit";
+import { navigateTo, goBack } from "../lib/navigation";
 import { AuthScreen } from "../components/AuthScreen";
 import React from "react";
 import { supabase } from "../lib/supabase";
@@ -22,6 +24,8 @@ let saved: number[] = [],
   query = "",
   sort = "적합도순",
   safe = true;
+let searchSubmitted = false;
+let searchFilters: string[] = [];
 const restaurants = [...initialRestaurants];
 let current = 0;
 const persist = () => member?.queueSave();
@@ -33,7 +37,11 @@ const toast = (s) => {
 };
 const go = (p, id = undefined) => {
   if (id !== undefined) current = +id;
-  location.hash = p;
+  if (p === "search" && location.hash !== "#search") {
+    searchSubmitted = false;
+    query = "";
+  }
+  navigateTo(p);
 };
 const pill = (text, cl = "") => <span className={"pill " + cl}>{text}</span>;
 const notice = (t) => (
@@ -417,6 +425,7 @@ export function getMatchingRestaurants({
   cuisine = "전체",
   term = "",
   useHealth = false,
+  filters = selectedFilters,
 } = {}) {
   const words = normalizeSearch(term).split(" ").filter(Boolean);
   return restaurants
@@ -442,7 +451,7 @@ export function getMatchingRestaurants({
       return (
         (cuisine === "전체" || r.type === cuisine) &&
         words.every((w) => haystack.includes(w)) &&
-        selectedFilters.every((id) => matchesFilter(r, id)) &&
+        filters.every((id) => matchesFilter(r, id)) &&
         (!useHealth || matchesHealth(r))
       );
     })
@@ -483,31 +492,41 @@ function categoryControls(value, forSearch = false) {
     </div>
   );
 }
-export function toggleFilter(id) {
-  selectedFilters = selectedFilters.includes(id)
-    ? selectedFilters.filter((x) => x !== id)
-    : [...selectedFilters, id];
+export function toggleFilter(id, forSearch = false) {
+  if (forSearch)
+    searchFilters = searchFilters.includes(id)
+      ? searchFilters.filter((x) => x !== id)
+      : [...searchFilters, id];
+  else
+    selectedFilters = selectedFilters.includes(id)
+      ? selectedFilters.filter((x) => x !== id)
+      : [...selectedFilters, id];
   persist();
   render();
 }
 function resetDiscovery(forSearch = false) {
-  selectedFilters = [];
   if (forSearch) {
     searchCategory = "전체";
+    searchFilters = [];
+    searchSubmitted = false;
     query = "";
-  } else category = "전체";
+  } else {
+    selectedFilters = [];
+    category = "전체";
+  }
   persist();
   render();
 }
 function filterControls(forSearch = false) {
+  const activeFilters = forSearch ? searchFilters : selectedFilters;
   return (
     <>
       <div className={"row between filter-heading"}>
         <span>
           {"맞춤 필터 "}
           <small>
-            {selectedFilters.length
-              ? selectedFilters.length + "개 선택"
+            {activeFilters.length
+              ? activeFilters.length + "개 선택"
               : "선택 없음"}
           </small>
         </span>
@@ -522,14 +541,14 @@ function filterControls(forSearch = false) {
       </div>
       <div className={"row wrap selected-filters"}>
         {React.Children.toArray(
-          selectedFilters.map((id) => (
+          activeFilters.map((id) => (
             <button
               className={"pill mint"}
               aria-label={
                 filterOptions.find((f) => f.id === id).label + " 필터 해제"
               }
               onClick={(event: any) => {
-                toggleFilter(id);
+                toggleFilter(id, forSearch);
               }}
             >
               {filterOptions.find((f) => f.id === id).label}
@@ -548,7 +567,7 @@ function filterControls(forSearch = false) {
         >
           {"☷ 필터 "}
           {filtersOpen ? "접기" : "선택"}
-          {selectedFilters.length ? " (" + selectedFilters.length + ")" : ""}
+          {activeFilters.length ? " (" + activeFilters.length + ")" : ""}
         </button>
       </div>
       {filtersOpen ? (
@@ -569,14 +588,14 @@ function filterControls(forSearch = false) {
                       <button
                         className={
                           "pill " +
-                          (selectedFilters.includes(f.id) ? "active" : "")
+                          (activeFilters.includes(f.id) ? "active" : "")
                         }
-                        aria-pressed={selectedFilters.includes(f.id)}
+                        aria-pressed={activeFilters.includes(f.id)}
                         onClick={(event: any) => {
-                          toggleFilter(f.id);
+                          toggleFilter(f.id, forSearch);
                         }}
                       >
-                        {selectedFilters.includes(f.id) ? "✓ " : ""}
+                        {activeFilters.includes(f.id) ? "✓ " : ""}
                         {f.label}
                       </button>
                     ))}
@@ -636,10 +655,24 @@ function noResults(forSearch = false) {
   );
 }
 function recommend() {
-  const list = getMatchingRestaurants({
-    cuisine: category,
-  });
-  return `${categoryControls(category)}${filterControls()}${resultHeading(list.length, "내 건강 맞춤 매장")}${list.length ? list.map((r) => restaurantCard(r, r.id)) : noResults()}${notice("식당 및 영양 정보는 기능 체험을 위한 더미 데이터입니다. 실제 알레르기 안전성은 매장에 직접 확인하세요.")}`;
+  const list = getMatchingRestaurants({ cuisine: category });
+  return (
+    <section aria-label="추천 매장 목록">
+      {categoryControls(category)}
+      {filterControls()}
+      {resultHeading(list.length, "내 건강 맞춤 매장")}
+      {list.length
+        ? list.map((r) => (
+            <React.Fragment key={r.id}>
+              {restaurantCard(r, r.id)}
+            </React.Fragment>
+          ))
+        : noResults()}
+      {notice(
+        "식당과 영양 정보는 예시 데이터입니다. 실제 알레르기 안전성은 매장에 확인하세요.",
+      )}
+    </section>
+  );
 }
 function submitSearch(event) {
   event.preventDefault();
@@ -647,6 +680,7 @@ function submitSearch(event) {
 }
 export function runSearch(value) {
   query = value.trim();
+  searchSubmitted = true;
   if (query) {
     recentQueries = [query, ...recentQueries.filter((x) => x !== query)].slice(
       0,
@@ -668,221 +702,145 @@ function removeRecent(index) {
 }
 function applyTheme(id) {
   searchCategory = "전체";
-  selectedFilters = [id];
+  searchFilters = [id];
+  searchSubmitted = false;
   query = "";
   persist();
   render();
 }
 function search() {
   const list = getMatchingRestaurants({
-    cuisine: searchCategory,
     term: query,
+    filters: searchFilters,
+    cuisine: searchCategory,
     useHealth: safe,
   });
   return (
-    <>
-      <form
-        className={"searchbox"}
-        role={"search"}
-        onSubmit={(event: any) => {
-          submitSearch(event);
-        }}
-      >
-        <span className={"search-leading"}>{searchIcon}</span>
+    <section className="search-page" aria-label="식당 검색 결과">
+      <form className="searchbox" role="search" onSubmit={submitSearch}>
+        <span className="search-leading">{searchIcon}</span>
         <input
           key={query}
-          name={"q"}
-          aria-label={"식당 검색"}
-          type={"search"}
-          autoComplete={"off"}
-          placeholder={"식당명, 메뉴, 카테고리를 검색해 보세요"}
-          defaultValue={esc(query)}
+          name="q"
+          aria-label="식당 검색"
+          type="search"
+          autoComplete="off"
+          placeholder="식당명, 메뉴, 카테고리를 검색해 보세요"
+          defaultValue={query}
+          onChange={(event) => {
+            if (!event.currentTarget.value && searchSubmitted) {
+              query = "";
+              searchSubmitted = false;
+              render();
+            }
+          }}
         />
-        <button type={"submit"} aria-label={"검색 실행"}>
+        <button type="submit" aria-label="검색 실행">
           {searchIcon}
         </button>
       </form>
-      <div
-        className={"panel"}
-        style={{
-          marginTop: "0",
-        }}
-      >
-        <div className={"row between"}>
-          <div>
-            <b>{"♧ 내 건강 맞춤 안전 필터"}</b>
-            <small
-              style={{
-                display: "block",
+      {!searchSubmitted && (
+        <section className="search-discovery" aria-label="검색 조건">
+          <div className="panel search-health-toggle">
+            <div>
+              <b>내 건강 맞춤 필터</b>
+              <small>설정한 건강 목표와 알레르기 조건을 적용해요.</small>
+            </div>
+            <button
+              className={"switch " + (safe ? "on" : "")}
+              aria-label="안전 필터"
+              aria-pressed={safe}
+              onClick={() => {
+                safe = !safe;
+                persist();
+                render();
               }}
-            >
-              {safe
-                ? "설정한 건강 목표 및 알레르기 조건 적용 중"
-                : "건강 프로필 자동 필터가 꺼져 있어요"}
-            </small>
+            />
           </div>
-          <button
-            className={"switch " + (safe ? "on" : "")}
-            aria-label={"안전 필터"}
-            aria-pressed={safe}
-            onClick={(event: any) => {
-              safe = !safe;
-              persist();
-              render();
-            }}
-          />
-        </div>
+          {categoryControls(searchCategory, true)}
+          {filterControls(true)}
+          <div className="sectionhead">
+            <h2>최근 검색어</h2>
+            <button className="text-action" onClick={clearRecent}>
+              모두 삭제
+            </button>
+          </div>
+          <div className="row wrap recent-queries">
+            {recentQueries.length ? (
+              recentQueries.map((term, i) => (
+                <span key={term} className="recent-chip">
+                  <button onClick={() => runSearch(term)}>{term}</button>
+                  <button
+                    aria-label={"최근 검색어 " + (i + 1) + " 삭제"}
+                    onClick={() => removeRecent(i)}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))
+            ) : (
+              <small>최근 검색어가 없어요.</small>
+            )}
+          </div>
+        </section>
+      )}
+      {searchSubmitted && (
         <button
-          className={"text-link"}
-          onClick={(event: any) => {
-            go("health");
+          className="text-action search-edit-conditions"
+          onClick={() => {
+            searchSubmitted = false;
+            render();
           }}
         >
-          {"내 건강 정보 수정 ›"}
+          검색 조건 변경
         </button>
-      </div>
-      {categoryControls(searchCategory, true)}
-      {filterControls(true)}
-      <div className={"sectionhead"}>
-        <p>{"최근 검색어"}</p>
-        <button
-          className={"muted"}
-          onClick={(event: any) => {
-            clearRecent();
-          }}
-        >
-          {"모두 삭제"}
-        </button>
-      </div>
-      <div className={"row wrap recent-queries"}>
-        {recentQueries.length ? (
-          recentQueries.map((x, i) => (
-            <span className={"recent-chip"}>
+      )}
+      {resultHeading(list.length, "맞춤 매칭 식당")}
+      {query && <p className="muted search-query">“{query}” 검색 결과</p>}
+      <div aria-live="polite">
+        {list.length ? (
+          list.map((r) => (
+            <article key={r.id} className="card pad search-result">
               <button
-                onClick={(event: any) => {
-                  runSearch(recentQueries[i]);
-                }}
+                className="search-result-main menu"
+                onClick={() => go("store", r.id)}
               >
-                {"◴ "}
-                {esc(x)}
+                <img src={"/assets/" + r.image + ".png"} alt={r.menu} />
+                <div>
+                  <small>
+                    {r.type} · {r.distance}m
+                  </small>
+                  <h3>{r.name}</h3>
+                  <p className="muted">{r.menu}</p>
+                  <p className="green">
+                    ★ {r.star} · {r.price.toLocaleString()}원
+                  </p>
+                </div>
               </button>
-              <button
-                aria-label={"최근 검색어 " + (i + 1) + " 삭제"}
-                onClick={(event: any) => {
-                  removeRecent(i);
-                }}
-              >
-                {"×"}
-              </button>
-            </span>
+              <div className="row wrap result-tags">
+                {r.dietary.slice(0, 3).map((id) => (
+                  <span key={id} className="tag">
+                    {filterOptions.find((f) => f.id === id)?.label}
+                  </span>
+                ))}
+              </div>
+              <div className="result-note">
+                ✿ {r.fit}% 적합 · {r.openNow ? "영업 중" : "영업 종료"} ·{" "}
+                {r.tag}
+              </div>
+            </article>
           ))
         ) : (
-          <small>{"최근 검색어가 없어요."}</small>
+          <div className="card pad empty">
+            <h3>검색 결과가 없어요</h3>
+            <p>다른 식당명이나 메뉴로 검색해 보세요.</p>
+            <button className="pill active" onClick={() => runSearch("")}>
+              전체 식당 보기
+            </button>
+          </div>
         )}
       </div>
-      {!query ? (
-        <>
-          <h2
-            style={{
-              fontSize: "15px",
-            }}
-          >
-            {"♨ 인기 건강 큐레이션 테마"}
-          </h2>
-          {React.Children.toArray(
-            [
-              ["lowSugar", "당뇨인 추천 외식", "혈당 케어 · 저당 식단"],
-              ["lowSodium", "저나트륨 안심 맛집", "저염식 · 담백한 한 끼"],
-              ["noShellfish", "갑각류 제외 식당", "알레르기 성분 확인"],
-            ].map(([id, title, sub], i) => (
-              <button
-                className={"card pad row theme-card"}
-                onClick={(event: any) => {
-                  applyTheme(id);
-                }}
-              >
-                <span className={"green"}>
-                  {i + 1}
-                  {"\u3000"}
-                </span>
-                <div>
-                  {title}
-                  <small
-                    style={{
-                      display: "block",
-                    }}
-                  >
-                    {sub}
-                  </small>
-                </div>
-                <span className={"theme-arrow"}>{"›"}</span>
-              </button>
-            )),
-          )}
-        </>
-      ) : (
-        ""
-      )}
-      {resultHeading(
-        list.length,
-        query ? "“" + esc(query) + "” 검색 결과" : "맞춤 매칭 식당",
-      )}
-      <div aria-live={"polite"}>
-        {list.length
-          ? list.map((r) => (
-              <article className={"card pad search-result"}>
-                <button
-                  className={"search-result-main menu"}
-                  onClick={(event: any) => {
-                    go("store", r.id);
-                  }}
-                >
-                  <img src={"assets/" + r.image + ".png"} alt={r.menu} />
-                  <div>
-                    <small>
-                      {r.type}
-                      {" · 역삼동 ("}
-                      {r.distance}
-                      {"m)"}
-                    </small>
-                    <h3>{r.name}</h3>
-                    <p className={"muted"}>{r.menu}</p>
-                    <p className={"green"}>
-                      {"★ "}
-                      {r.star}
-                      {" · "}
-                      {r.price.toLocaleString()}
-                      {"원"}
-                    </p>
-                  </div>
-                </button>
-                <div className={"row wrap result-tags"}>
-                  {React.Children.toArray(
-                    r.dietary
-                      .slice(0, 3)
-                      .map((id) => (
-                        <span className={"tag"}>
-                          {filterOptions.find((f) => f.id === id).label}
-                        </span>
-                      )),
-                  )}
-                </div>
-                <div className={"result-note"}>
-                  {"✿ "}
-                  {r.fit}
-                  {"% 적합 · "}
-                  {r.openNow ? "영업 중" : "영업 종료"}
-                  {" · "}
-                  {r.tag}
-                </div>
-              </article>
-            ))
-          : noResults(true)}
-      </div>
-      <p className={"muted demo-note"}>
-        {"기능 체험용 식당·메뉴 더미 데이터입니다."}
-      </p>
-    </>
+    </section>
   );
 }
 function store() {
@@ -1112,7 +1070,8 @@ function reviewCards(own) {
   )
     .slice(0, own ? 100 : 2)
     .map((r, i) => (
-      <article className={"card pad"}>
+      <article key={r.id || r.name} className={"card pad"}>
+        {r.sample && <span className="pill mint">예시 리뷰</span>}
         <div className={"row between"}>
           <b>
             {own
@@ -1628,7 +1587,7 @@ function healthPage() {
         }}
       >
         <div
-          className={"searchbox"}
+          className={"searchbox health-goal-entry"}
           style={{
             margin: "0",
           }}
@@ -1723,16 +1682,15 @@ function toggleHealth(x) {
   persist();
   render();
 }
+function editProfile() {
+  return <ProfileEdit member={member} onDone={goBack} />;
+}
 function profile() {
   return (
-    <>
+    <section className="profile-page">
       <div className={"profilehero"}>
         <div className={"row"}>
-          <img
-            className={"avatar"}
-            src={"assets/avatar.png"}
-            alt={"김건강 프로필"}
-          />
+          <img className={"avatar"} src={member.avatar()} alt={"프로필 사진"} />
           <div
             style={{
               flex: "1",
@@ -1741,13 +1699,13 @@ function profile() {
             <h3>
               {esc(member?.name() || "회원")} <small>{"님"}</small>
             </h3>
-            <p className={"muted"}>{"그린플레이트 회원"}</p>
+            <p className={"muted"}>{"Healeat 회원"}</p>
             {pill("⚕ 혈당 케어 집중 관리 중", "mint")}
           </div>
           <button
             className={"secondary"}
             onClick={(event: any) => {
-              go("health");
+              go("edit-profile");
             }}
           >
             {"수정 ✎"}
@@ -1792,56 +1750,56 @@ function profile() {
           </p>
         </div>
       </div>
-      <div className={"stats"}>
-        <button
-          onClick={(event: any) => {
-            go("reviews");
-          }}
-        >
-          <span
-            className={"icon"}
-            style={{
-              margin: "auto",
-            }}
-          >
-            {"▧"}
-          </span>
-          <strong>{reviews.length}</strong>
-          <small>{"작성 리뷰 ›"}</small>
-        </button>
-        <button
-          onClick={(event: any) => {
-            go("saved");
-          }}
-        >
-          <span
-            className={"icon"}
-            style={{
-              margin: "auto",
-            }}
-          >
-            {"♧"}
-          </span>
-          <strong>{saved.length}</strong>
-          <small>{"저장 식당 ›"}</small>
-        </button>
-        <button
-          onClick={(event: any) => {
-            toast("방문 인증 5건이 완료되었어요");
-          }}
-        >
-          <span
-            className={"icon"}
-            style={{
-              margin: "auto",
-            }}
-          >
-            {"♙"}
-          </span>
-          <strong>{"5"}</strong>
-          <small>{"방문 인증 ›"}</small>
-        </button>
-      </div>
+      <section className="profile-activity" aria-label="최근 활동">
+        <div className="sectionhead">
+          <h2>최근 작성 리뷰</h2>
+          <button className="text-action" onClick={() => go("reviews")}>
+            전체보기 ›
+          </button>
+        </div>
+        {reviews.length ? (
+          reviews.slice(0, 2).map((r) => (
+            <article key={r.id} className="card pad activity-review">
+              <div className="row between">
+                <h3>{r.name}</h3>
+                <span className="green">★ {r.star.toFixed(1)}</span>
+              </div>
+              {r.sample && <span className="pill mint">예시 리뷰</span>}
+              <p>{r.text}</p>
+              <small>{r.date}</small>
+            </article>
+          ))
+        ) : (
+          <p className="muted">방문한 식당에 첫 리뷰를 남겨보세요.</p>
+        )}
+        <div className="sectionhead">
+          <h2>저장한 식당</h2>
+          <button className="text-action" onClick={() => go("saved")}>
+            전체보기 ›
+          </button>
+        </div>
+        <div className="profile-saved-list">
+          {saved.slice(0, 3).map((id) => {
+            const r = restaurants[id];
+            return (
+              <button
+                key={id}
+                className="card pad profile-saved-item"
+                onClick={() => go("store", id)}
+              >
+                <img src={"/assets/" + r.image + ".png"} alt={r.menu} />
+                <span>
+                  <strong>{r.name}</strong>
+                  <small>
+                    {r.type} · {r.distance}m
+                  </small>
+                </span>
+                <span className="green">›</span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
       <button
         className={"card pad row"}
         style={{
@@ -1904,23 +1862,11 @@ function profile() {
         <small>{"계정 및 고객 지원"}</small>
         {React.Children.toArray(
           [
-            "회원정보 수정",
             "자주 묻는 질문 (FAQ)",
             "식약처 공공 데이터 출처 및 검증 정책",
             "서비스 이용약관 및 개인정보 처리방침",
           ].map((x, i) => (
-            <button
-              className={"listlink"}
-              onClick={
-                !i
-                  ? (event: any) => {
-                      go("health");
-                    }
-                  : (event: any) => {
-                      showInfo(i);
-                    }
-              }
-            >
+            <button className={"listlink"} onClick={() => showInfo(i + 1)}>
               {x}
               <span>{"›"}</span>
             </button>
@@ -1948,7 +1894,7 @@ function profile() {
       >
         {"회원 탈퇴\u3000 ·\u3000 버전 2.4.0 (최신 빌드)"}
       </p>
-    </>
+    </section>
   );
 }
 function savedPage() {
@@ -2263,7 +2209,7 @@ function editLocation() {
       <p className={"muted"}>
         {"설정한 위치는 회원 계정에 저장됩니다. 지도는 예시 화면입니다."}
       </p>
-      <div className={"row"}>
+      <div className={"dialog-actions"}>
         <button
           type={"button"}
           className={"secondary"}
@@ -2293,95 +2239,6 @@ async function applyLocation(event) {
   render();
   if (await persist()) toast("기준 위치를 변경했어요");
 }
-let inputSavePending = false;
-function inputSaveForm() {
-  return (
-    <section
-      className={"card pad input-save-card"}
-      aria-labelledby={"input-save-title"}
-    >
-      <h2 id={"input-save-title"}>{"텍스트 저장하기"}</h2>
-      <p className={"muted"}>
-        {"입력한 내용을 저장하고 Supabase Table Editor에서 확인하세요."}
-      </p>
-      <form
-        onSubmit={(event: any) => {
-          saveInput(event);
-        }}
-      >
-        <label htmlFor={"db-input"}>{"저장할 내용"}</label>
-        <textarea
-          className={"field"}
-          id={"db-input"}
-          name={"input"}
-          rows={3}
-          maxLength={1000}
-          required={true}
-          placeholder={"예: 테스트 중입니다"}
-        />
-        <button className={"primary"} type={"submit"}>
-          {"저장하기"}
-        </button>
-        <p
-          className={"input-save-status"}
-          role={"status"}
-          aria-live={"polite"}
-        />
-      </form>
-    </section>
-  );
-}
-export async function saveInput(event) {
-  event.preventDefault();
-  if (inputSavePending || !member?.ready) return;
-  const form = event.target,
-    field = form.elements.namedItem("input");
-  const status = form.querySelector('[role="status"]'),
-    button = form.querySelector('button[type="submit"]');
-  const value = field.value.trim();
-  status.className = "input-save-status";
-  if (!value || Array.from(value).length > 1000) {
-    status.textContent = "내용을 1~1,000자 입력해 주세요.";
-    return;
-  }
-  if (!supabase) {
-    status.textContent =
-      "연결 설정을 확인해 주세요. .env를 저장한 뒤 서버를 재시작하고 페이지를 새로고침하세요.";
-    return;
-  }
-  inputSavePending = true;
-  button.disabled = true;
-  field.disabled = true;
-  button.textContent = "저장 중…";
-  status.textContent = "저장하고 있어요…";
-  try {
-    const { error } = await supabase.from("input_db").insert({
-      input: value,
-      user_id: member.user.id,
-    });
-    if (error) throw error;
-    field.value = "";
-    status.className = "input-save-status green";
-    status.textContent =
-      "저장됐어요! Supabase Table Editor → input_db에서 확인하세요.";
-  } catch (error) {
-    status.className = "input-save-status input-save-error";
-    if (error.code === "42501")
-      status.textContent =
-        "저장 권한이 없어요. input_db의 INSERT 권한과 RLS 정책을 확인해 주세요.";
-    else if (["PGRST205", "42P01"].includes(error.code))
-      status.textContent =
-        "input_db 테이블을 찾지 못했어요. Supabase에서 테이블을 먼저 생성해 주세요.";
-    else
-      status.textContent =
-        "저장하지 못했어요. 네트워크와 Supabase 설정을 확인하고 다시 시도해 주세요.";
-  } finally {
-    inputSavePending = false;
-    button.disabled = false;
-    field.disabled = false;
-    button.textContent = "저장하기";
-  }
-}
 export function AppView() {
   if (!member.ready) return member.view();
   const page = location.hash.slice(1) || "home",
@@ -2392,6 +2249,7 @@ export function AppView() {
     recommend: "추천 리스트",
     search: "검색",
     profile: "마이페이지",
+    "edit-profile": "프로필 수정",
     health: "건강 정보 설정",
     store: "가게 홈",
     write: "리뷰 작성",
@@ -2406,6 +2264,7 @@ export function AppView() {
     recommend,
     search,
     profile,
+    "edit-profile": editProfile,
     health: healthPage,
     store,
     write,
@@ -2418,7 +2277,7 @@ export function AppView() {
   const active =
     page === "home-basic"
       ? "home"
-      : ["health", "profile", "saved", "reviews"].includes(page)
+      : ["health", "profile", "saved", "reviews", "edit-profile"].includes(page)
         ? "profile"
         : page;
   const heading = isHome ? (
@@ -2465,7 +2324,7 @@ export function AppView() {
         className={"back"}
         aria-label={"뒤로 가기"}
         onClick={(event: any) => {
-          go("home");
+          goBack();
         }}
       >
         <svg
@@ -2485,7 +2344,7 @@ export function AppView() {
       <h1>{titles[page] || titles.home}</h1>
     </>
   );
-  document.title = (titles[page] || "홈") + " · 그린플레이트";
+  document.title = (titles[page] || "홈") + " · Healeat";
   return (
     <>
       <div className={"member-toolbar"}>
@@ -2520,7 +2379,6 @@ export function AppView() {
         )}
       </header>
       <main className={"content " + (page === "map" ? "map-content" : "")}>
-        {isHome ? inputSaveForm() : ""}
         <View />
       </main>
       {["store", "write", "gallery", "reviews", "saved", "map"].includes(
@@ -2617,6 +2475,10 @@ export const member = {
   get client() {
     return supabase;
   },
+  avatar() {
+    return this.photoUrls[this.prefs.avatarPath] || "/assets/avatar.png";
+  },
+  profilePending: false,
   name() {
     return this.user?.user_metadata?.username || "회원";
   },
@@ -2636,6 +2498,7 @@ export const member = {
         recentQueries,
         prefs: this.prefs,
         selectedFilters,
+        searchFilters,
         category,
         searchCategory,
         sort,
@@ -2649,6 +2512,8 @@ export const member = {
     health = [];
     recentQueries = [];
     selectedFilters = [];
+    searchFilters = [];
+    searchSubmitted = false;
     category = searchCategory = "전체";
     query = "";
     sort = "적합도순";
@@ -2670,7 +2535,7 @@ export const member = {
     render();
   },
   view() {
-    document.title = "로그인 · 그린플레이트";
+    document.title = "로그인 · Healeat";
     return <AuthScreen member={this} />;
   },
   setMode(mode) {
@@ -2717,6 +2582,19 @@ export const member = {
     status.textContent = "처리 중…";
     try {
       const credentials = await this.credentials(username, password);
+      const usernameKey = await this.digest(
+        username.normalize("NFKC").trim().toLowerCase(),
+      );
+      const lookup = await this.client.rpc("resolve_login_email", {
+        p_username_key: usernameKey,
+      });
+      if (lookup.error && !["PGRST202", "42883"].includes(lookup.error.code))
+        throw lookup.error;
+      if (lookup.data) {
+        if (this.mode === "signup") throw { code: "user_already_exists" };
+        credentials.email = lookup.data;
+      }
+
       const result =
         this.mode === "signup"
           ? await this.client.auth.signUp({
@@ -2736,6 +2614,16 @@ export const member = {
         this.screen();
         return;
       }
+      if (
+        this.mode === "login" &&
+        result.data.session.user.user_metadata?.username
+          ?.normalize("NFKC")
+          .trim()
+          .toLowerCase() !== username.normalize("NFKC").trim().toLowerCase()
+      ) {
+        await this.client.auth.signOut({ scope: "local" });
+        throw { code: "invalid_credentials" };
+      }
       await this.load(result.data.session.user);
     } catch (error) {
       status.textContent =
@@ -2748,9 +2636,11 @@ export const member = {
               : error.code === "over_email_send_rate_limit"
                 ? "가입 요청이 잠시 제한됐어요. 잠시 후 다시 시도해 주세요."
                 : "요청을 완료하지 못했어요. 연결 상태와 가입 설정을 확인해 주세요.";
+      this.message = status.textContent;
     } finally {
       this.pending = false;
       button.disabled = false;
+      if (!this.ready && this.phase === "auth") this.screen();
     }
   },
   async load(user) {
@@ -2790,6 +2680,9 @@ export const member = {
       selectedFilters = (data.selectedFilters || []).filter((id) =>
         filterOptions.some((f) => f.id === id),
       );
+      searchFilters = (data.searchFilters || []).filter((id) =>
+        filterOptions.some((f) => f.id === id),
+      );
       category = categories.includes(data.category) ? data.category : "전체";
       searchCategory = categories.includes(data.searchCategory)
         ? data.searchCategory
@@ -2798,10 +2691,40 @@ export const member = {
         ? data.sort
         : "적합도순";
       safe = data.safe ?? true;
+      const addStarterContent = !this.prefs.starterContentVersion;
+      if (addStarterContent) {
+        saved = [
+          ...new Set([...saved, ...[0, 1, 2].filter((id) => restaurants[id])]),
+        ];
+        const examples: Review[] = [0, 1]
+          .filter((id) => restaurants[id])
+          .map((id, i) => ({
+            id: "starter-review-" + id,
+            restaurantId: id,
+            name: restaurants[id].name,
+            star: i ? 4 : 5,
+            text: i
+              ? "간이 담백하고 채소가 다양해서 편하게 식사했어요. 다음에 또 방문하고 싶어요."
+              : "드레싱을 따로 요청할 수 있어서 좋았어요. 신선한 재료로 든든하게 먹었습니다.",
+            image: restaurants[id].image,
+            tag: "Healeat 이용 예시",
+            date: new Date().toLocaleDateString("sv-SE").replaceAll("-", "."),
+            sample: true,
+          }));
+        reviews = [
+          ...reviews,
+          ...examples.filter(
+            (r) => !reviews.some((existing) => existing.id === r.id),
+          ),
+        ];
+        this.prefs.starterContentVersion = 1;
+      }
       await this.refreshPhotoUrls();
       if (token !== this.epoch) return;
       this.phase = "ready";
       this.ready = true;
+      if (addStarterContent) await this.queueSave();
+      if (token !== this.epoch) return;
       render();
     } catch (error) {
       if (token !== this.epoch) return;
@@ -2874,9 +2797,78 @@ export const member = {
     await this.flush();
     this.updateStatus();
   },
+  async updateProfile(username: string, file: File | null) {
+    if (!username) throw new Error("아이디를 입력해 주세요.");
+    if (this.profilePending) throw new Error("프로필을 저장하고 있어요.");
+    this.profilePending = true;
+    const token = this.epoch;
+    let newPath = "",
+      referenced = false;
+    try {
+      if (file) {
+        const ext = {
+          "image/jpeg": "jpg",
+          "image/png": "png",
+          "image/webp": "webp",
+          "image/gif": "gif",
+        }[file.type];
+        if (!ext || file.size > 5 * 1024 * 1024)
+          throw new Error("5MB 이하의 이미지 파일을 선택해 주세요.");
+        newPath = this.user.id + "/profile/" + crypto.randomUUID() + "." + ext;
+        const { error } = await this.client.storage
+          .from("review-photos")
+          .upload(newPath, file, { contentType: file.type });
+        if (error)
+          throw new Error("사진을 업로드하지 못했어요. 다시 시도해 주세요.");
+      }
+      if (token !== this.epoch) throw new Error("다시 로그인해 주세요.");
+      if (username !== this.name()) {
+        const usernameKey = await this.digest(
+          username.normalize("NFKC").trim().toLowerCase(),
+        );
+        const { error } = await this.client.rpc("set_login_name", {
+          p_username: username,
+          p_username_key: usernameKey,
+        });
+        if (error)
+          throw new Error(
+            ["23505", "email_exists", "user_already_exists"].includes(
+              error.code,
+            )
+              ? "이미 사용 중인 아이디예요. 다른 아이디를 입력해 주세요."
+              : ["PGRST202", "42883"].includes(error.code)
+                ? "아이디 변경을 위한 서버 설정이 필요해요. 관리자에게 문의해 주세요."
+                : "아이디를 변경하지 못했어요. 연결 상태를 확인하고 다시 시도해 주세요.",
+          );
+        if (token !== this.epoch) throw new Error("다시 로그인해 주세요.");
+        this.user = {
+          ...this.user,
+          user_metadata: { ...this.user.user_metadata, username },
+        };
+        // Refresh cached session metadata after the atomic server-side rename.
+        const refreshed = await this.client.auth.refreshSession();
+        if (!refreshed.error && refreshed.data.session)
+          this.user = refreshed.data.session.user;
+      }
+      if (newPath) {
+        this.prefs.avatarPath = newPath;
+        referenced = true;
+      }
+      if (!(await this.queueSave()))
+        throw new Error(
+          "변경사항을 아직 저장하지 못했어요. 연결 확인 후 다시 저장해 주세요.",
+        );
+      await this.refreshPhotoUrls();
+      render();
+    } finally {
+      if (newPath && !referenced)
+        await this.client.storage.from("review-photos").remove([newPath]);
+      this.profilePending = false;
+    }
+  },
   async logout() {
     if (this.pending) return;
-    if (this.reviewPending || inputSavePending) {
+    if (this.reviewPending || this.profilePending) {
       toast("저장을 마친 뒤 로그아웃해 주세요.");
       return;
     }
@@ -2905,7 +2897,10 @@ export const member = {
   },
   async refreshPhotoUrls() {
     const epoch = this.epoch,
-      paths = reviews.flatMap((r) => r.photos || []);
+      paths = [
+        ...reviews.flatMap((r) => r.photos || []),
+        ...(this.prefs.avatarPath ? [this.prefs.avatarPath] : []),
+      ];
     if (!paths.length) return;
     const { data, error } = await this.client.storage
       .from("review-photos")
@@ -2923,6 +2918,7 @@ export const member = {
       return;
     }
     this.client.auth.onAuthStateChange((event: any, session) => {
+      const manualAuth = this.pending;
       // Defer work so no Supabase request is awaited inside Auth's state callback.
       setTimeout(() => {
         if (!session) {
@@ -2931,7 +2927,11 @@ export const member = {
           this.reset();
           this.phase = "auth";
           this.screen();
-        } else if (event === "SIGNED_IN" && this.user?.id !== session.user.id)
+        } else if (
+          event === "SIGNED_IN" &&
+          !manualAuth &&
+          this.user?.id !== session.user.id
+        )
           this.load(session.user);
       }, 0);
     });
@@ -2941,7 +2941,8 @@ export const member = {
       this.screen();
       return;
     }
-    await this.load(data.session.user);
+    const currentUser = await this.client.auth.getUser();
+    await this.load(currentUser.data?.user || data.session.user);
   },
 };
 export type MemberController = typeof member;

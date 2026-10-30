@@ -15,6 +15,7 @@ export interface Restaurant {
   keywords: string[];
 }
 export interface Review {
+  sample?: boolean;
   id?: string;
   restaurantId?: number;
   name: string;
@@ -29,6 +30,8 @@ export interface Review {
   photos?: string[];
 }
 export interface MemberPreferences {
+  avatarPath?: string;
+  starterContentVersion?: number;
   locationPlace?: string;
   locationAddress?: string;
   switch0?: boolean;
@@ -42,6 +45,7 @@ export interface MemberData {
   recentQueries: string[];
   prefs: MemberPreferences;
   selectedFilters: string[];
+  searchFilters?: string[];
   category: string;
   searchCategory: string;
   sort: string;

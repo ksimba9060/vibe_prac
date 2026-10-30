@@ -1,3 +1,4 @@
+import { initializeNavigation, recordNavigation } from "./lib/navigation";
 import { useEffect, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -19,7 +20,9 @@ export default function App() {
   useSyncExternalStore(subscribe, getSnapshot);
   useEffect(() => {
     setDialogCloser(clearDialogContent);
+    initializeNavigation();
     const navigate = () => {
+      recordNavigation();
       clearDialogContent();
       if (location.hash !== "#write" && !member.reviewPending)
         member.clearPhotos();
