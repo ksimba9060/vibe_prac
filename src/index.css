@@ -1719,3 +1719,84 @@ body {
   width: 100%;
   max-width: 100%;
 }
+.restaurant-carousel {
+  position: relative;
+  margin: 0 -6px;
+}
+.restaurant-carousel .carousel-track {
+  margin-right: 0;
+  padding: 0 6px 5px;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: 6px;
+  overscroll-behavior-x: contain;
+}
+.carousel-track > .card {
+  scroll-snap-align: start;
+  flex-basis: 84%;
+  min-width: 0;
+}
+.carousel-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid #dbe7e1;
+  color: var(--green);
+  box-shadow: 0 3px 12px #183b3024;
+  backdrop-filter: blur(8px);
+}
+.carousel-prev {
+  left: -5px;
+}
+.carousel-next {
+  right: -5px;
+}
+.carousel-arrow:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.registered-health {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 12px;
+}
+.registered-health > p {
+  width: 100%;
+  margin: 0 0 3px;
+}
+.removable-health {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 32px;
+  padding: 6px 10px;
+  border-radius: 18px;
+  background: white;
+  border: 1px solid #dde5e0;
+  color: var(--green);
+  font-size: 12px;
+}
+.removable-health > span {
+  font-size: 18px;
+  line-height: 1;
+  color: #6e7e76;
+}
+.save-error {
+  padding: 4px 22px 8px;
+}
+.heroimg {
+  background: #eef2ed;
+}
+.carousel-track {
+  scrollbar-width: none;
+}
+.carousel-track::-webkit-scrollbar {
+  display: none;
+}

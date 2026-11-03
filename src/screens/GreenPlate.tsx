@@ -1,3 +1,5 @@
+import { RestaurantCarousel } from "../components/RestaurantCarousel";
+import { getRestaurantImage } from "../data/restaurantImages";
 import { PhoneNavigation } from "../components/PhoneNavigation";
 import { ProfileEdit } from "../components/ProfileEdit";
 import { navigateTo, goBack } from "../lib/navigation";
@@ -63,7 +65,7 @@ async function save(id) {
   if (await persist())
     toast(selected ? "식당을 저장했어요" : "저장을 해제했어요");
 }
-function photo(r, id, im = r.image) {
+function photo(r, id, im = getRestaurantImage(r)) {
   return (
     <div className={"photo"}>
       <img className={"heroimg"} src={"assets/" + im + ".png"} alt={r.menu} />
@@ -237,7 +239,7 @@ function home() {
             go("store", 0);
           }}
         >
-          {photo(restaurants[0], 0, "salmon")}
+          {photo(restaurants[0], 0)}
           <div className={"row between"}>
             <h3>{"그린플레이트 역삼점"}</h3>
             {pill("샐러드")}
@@ -291,11 +293,13 @@ function home() {
         {esc(member?.name() || "회원")}
         {"님의 식단 기준 90% 이상 적합지"}
       </p>
-      <div className={"horizontal"}>
-        {React.Children.toArray(
-          restaurants.slice(1, 3).map((r, i) => restaurantCard(r, i + 1)),
-        )}
-      </div>
+      <RestaurantCarousel>
+        {restaurants.slice(1, 7).map((r, i) => (
+          <React.Fragment key={r.name}>
+            {restaurantCard(r, i + 1)}
+          </React.Fragment>
+        ))}
+      </RestaurantCarousel>
       <div className={"panel"}>
         <b>{"✚\u3000식단 맞춤 보증 리포트"}</b>
         <p className={"muted"}>
@@ -806,7 +810,10 @@ function search() {
                 className="search-result-main menu"
                 onClick={() => go("store", r.id)}
               >
-                <img src={"/assets/" + r.image + ".png"} alt={r.menu} />
+                <img
+                  src={"/assets/" + getRestaurantImage(r) + ".png"}
+                  alt={r.menu}
+                />
                 <div>
                   <small>
                     {r.type} · {r.distance}m
@@ -875,7 +882,7 @@ function store() {
           go("gallery");
         }}
       >
-        {photo(r, current)}
+        {photo(r, current, getRestaurantImage(r, "detail"))}
         <span
           className={"photocaption"}
           style={{
@@ -976,7 +983,10 @@ function store() {
         [r].map((m, i) => (
           <div className={"card pad"}>
             <div className={"menu"}>
-              <img src={"assets/" + m.image + ".png"} alt={m.menu} />
+              <img
+                src={"assets/" + getRestaurantImage(m) + ".png"}
+                alt={m.menu}
+              />
               <div>
                 <span className={"tag"}>
                   {i ? 97 : 99}
@@ -1596,7 +1606,8 @@ function healthPage() {
           <input
             name={"disease"}
             required={true}
-            placeholder={"질병명 직접 입력 또는 검색"}
+            aria-label={"질병 또는 알레르기 추가"}
+            placeholder={"질병 또는 알레르기 직접 입력"}
           />
           <button
             style={{
@@ -1606,14 +1617,23 @@ function healthPage() {
             {"+ 추가"}
           </button>
         </div>
-        <p className={"muted"}>
-          {"등록된 질환: "}
+        <div className="registered-health" aria-label="등록된 건강 정보">
+          <p className="muted">등록된 질환 및 알레르기</p>
           {React.Children.toArray(
-            health
-              .filter((x) => !["갑각류", "견과류"].includes(x))
-              .map((x) => <span className={"tag"}>{esc(x)}</span>),
+            health.map((x) => (
+              <button
+                key={x}
+                type="button"
+                className="tag removable-health"
+                aria-label={x + " 삭제"}
+                onClick={() => removeHealth(x)}
+              >
+                {esc(x)} <span aria-hidden="true">×</span>
+              </button>
+            )),
           )}
-        </p>
+          {!health.length && <small>등록된 건강 정보가 없습니다.</small>}
+        </div>
       </form>
       <div className={"checkgrid"}>
         {React.Children.toArray(
@@ -1668,6 +1688,7 @@ function healthPage() {
 function healthChip(x) {
   return (
     <button
+      aria-pressed={health.includes(x)}
       className={health.includes(x) ? "selected" : ""}
       onClick={(event: any) => {
         toggleHealth(x);
@@ -1677,6 +1698,11 @@ function healthChip(x) {
       {x}
     </button>
   );
+}
+export function removeHealth(value: string) {
+  health = health.filter((item) => item !== value);
+  persist();
+  render();
 }
 function toggleHealth(x) {
   health = health.includes(x) ? health.filter((y) => y !== x) : [...health, x];
@@ -1788,7 +1814,10 @@ function profile() {
                 className="card pad profile-saved-item"
                 onClick={() => go("store", id)}
               >
-                <img src={"/assets/" + r.image + ".png"} alt={r.menu} />
+                <img
+                  src={"/assets/" + getRestaurantImage(r) + ".png"}
+                  alt={r.menu}
+                />
                 <span>
                   <strong>{r.name}</strong>
                   <small>
@@ -2361,9 +2390,11 @@ export function AppView() {
           {"로그아웃"}
         </button>
       </div>
-      <div id={"cloud-status"} className={"cloud-status"} role={"status"}>
-        {member.statusView()}
-      </div>
+      {member.error && (
+        <div className="save-error" role="alert">
+          {member.statusView()}
+        </div>
+      )}
       <header>
         {heading}
         {isHome ? (
@@ -2439,11 +2470,11 @@ function basicHome() {
           {"전체보기 ›"}
         </button>
       </div>
-      <div className={"horizontal"}>
-        {React.Children.toArray(
-          restaurants.map((r, i) => restaurantCard(r, i)),
-        )}
-      </div>
+      <RestaurantCarousel>
+        {restaurants.map((r, i) => (
+          <React.Fragment key={r.name}>{restaurantCard(r, i)}</React.Fragment>
+        ))}
+      </RestaurantCarousel>
       <div className={"panel"}>
         <h3>{"✚ 식단 맞춤 보증 리포트"}</h3>
         <p className={"muted"}>

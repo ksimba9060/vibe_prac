@@ -456,4 +456,48 @@ describe("React migration regression coverage", () => {
     );
     expect(member.name()).toBe("A");
   });
+  it("hides routine save activity but retains actionable save errors", async () => {
+    await member.load(user("A"));
+    const { container } = render(<TestApp />);
+    expect(container.querySelector("#cloud-status")).toBeNull();
+    expect(screen.queryByText("모든 변경사항이 저장됐어요")).toBeNull();
+    mocks.fail = true;
+    runSearch("저당");
+    await member.flush();
+    await waitFor(() =>
+      expect(screen.getByRole("alert").textContent).toContain("다시 저장"),
+    );
+  });
+  it("deletes custom diseases and allergies without deleting other health entries", async () => {
+    mocks.rows.set("A", {
+      health: ["크론병", "갑각류", "달걀"],
+      prefs: { starterContentVersion: 1 },
+    });
+    await member.load(user("A"));
+    location.hash = "#health";
+    render(<TestApp />);
+    fireEvent.click(
+      screen.getByRole("button", { name: "크론병 삭제", exact: true }),
+    );
+    expect(
+      screen.queryByRole("button", { name: "크론병 삭제", exact: true }),
+    ).toBeNull();
+    fireEvent.click(
+      screen.getByRole("button", { name: "갑각류 삭제", exact: true }),
+    );
+    expect(
+      screen
+        .getByRole("button", { name: "갑각류", exact: true })
+        .getAttribute("aria-pressed"),
+    ).toBe("false");
+    await member.flush();
+    expect(mocks.rows.get("A").health).toEqual(["달걀"]);
+    expect(
+      screen.getByRole("button", { name: "달걀 삭제", exact: true }),
+    ).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole("button", { name: "달걀 삭제", exact: true }),
+    );
+    expect(screen.getByText("등록된 건강 정보가 없습니다.")).toBeTruthy();
+  });
 });
