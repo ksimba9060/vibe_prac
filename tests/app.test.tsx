@@ -265,9 +265,20 @@ describe("React migration regression coverage", () => {
     toggleFilter("noNuts");
     toggleFilter("lowSugar");
     location.hash = "#search";
-    render(<TestApp />);
-    expect(screen.getByText("최근 검색어")).toBeTruthy();
-    expect(screen.getByRole("group", { name: "음식 카테고리" })).toBeTruthy();
+    const { container } = render(<TestApp />);
+    expect(container.querySelector(".recent-queries")).toBeTruthy();
+    expect(container.querySelector(".searchbox")?.nextElementSibling).toBe(
+      container.querySelector(".search-discovery"),
+    );
+    expect(
+      screen.getByRole("button", { name: "모두 삭제" }).parentElement,
+    ).toBe(container.querySelector(".recent-queries"));
+    expect(container.querySelector("#filter-options .category-grid")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /필터 선택/ }));
+    expect(
+      container.querySelector("#filter-options .category-grid"),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /필터 접기/ }));
     expect(screen.queryByText("내 건강 정보 수정 ›")).toBeNull();
     fireEvent.change(screen.getByLabelText("식당 검색"), {
       target: { value: "비건데이" },
@@ -277,10 +288,10 @@ describe("React migration regression coverage", () => {
       screen.getByRole("heading", { name: "비건데이 샐러드" }),
     ).toBeTruthy();
     expect(screen.getByText("맞춤 매칭 식당")).toBeTruthy();
-    expect(screen.queryByText("최근 검색어")).toBeNull();
-    expect(screen.queryByRole("group", { name: "음식 카테고리" })).toBeNull();
+    expect(container.querySelector(".recent-queries")).toBeNull();
+    expect(container.querySelector("#filter-options .category-grid")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "검색 조건 변경" }));
-    expect(screen.getByText("최근 검색어")).toBeTruthy();
+    expect(container.querySelector(".recent-queries")).toBeTruthy();
   });
   it("adds starter reviews and saved restaurants once and displays profile previews", async () => {
     await member.load(user("new-member"));
@@ -315,15 +326,21 @@ describe("React migration regression coverage", () => {
   });
   it("uploads review photos and saves all review fields", async () => {
     await member.load(user("A"));
-    location.hash = "#write";
-    const { container } = render(<TestApp />);
-    fireEvent.change(container.querySelector("textarea")!, {
+    location.hash = "#store";
+    render(<TestApp />);
+    fireEvent.click(screen.getByRole("button", { name: "▧ 리뷰 작성" }));
+    cleanup();
+    const writeView = render(<TestApp />);
+    fireEvent.change(writeView.container.querySelector("textarea")!, {
       target: { value: "맛있고 건강하게 잘 먹었습니다." },
     });
-    fireEvent.change(container.querySelector('input[name="glucose"]')!, {
-      target: { value: "110" },
-    });
-    fireEvent.change(container.querySelector('input[type="file"]')!, {
+    fireEvent.change(
+      writeView.container.querySelector('input[name="glucose"]')!,
+      {
+        target: { value: "110" },
+      },
+    );
+    fireEvent.change(writeView.container.querySelector('input[type="file"]')!, {
       target: {
         files: [new File(["photo"], "meal.png", { type: "image/png" })],
       },
@@ -335,6 +352,7 @@ describe("React migration regression coverage", () => {
     expect(review.criteria).toHaveLength(2);
     expect(review.photos[0]).toMatch(/^A\/.+\.png$/);
     expect(mocks.upload).toHaveBeenCalledOnce();
+    expect(location.hash).toBe("#store");
   });
 
   it("separates profile editing from health settings and removes redundant account and stats buttons", async () => {

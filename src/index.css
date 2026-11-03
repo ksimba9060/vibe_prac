@@ -936,7 +936,12 @@ nav button.active {
 }
 .recent-queries {
   gap: 8px;
-  margin: 5px 0 20px;
+  align-items: center;
+  margin: 5px 0 14px;
+}
+.recent-clear {
+  margin-left: auto;
+  white-space: nowrap;
 }
 .recent-chip {
   display: flex;
@@ -1392,20 +1397,38 @@ nav .search-icon {
 }
 .search-health-toggle {
   display: flex;
-  gap: 16px;
+  gap: 8px;
   align-items: center;
   justify-content: space-between;
+  padding: 10px 12px;
+  margin: 8px 0;
 }
 .search-health-toggle > div {
+  flex: 1;
   min-width: 0;
 }
 .search-health-toggle small {
   display: block;
-  margin-top: 6px;
-  line-height: 1.6;
+  line-height: 1.4;
 }
 .search-health-toggle .switch {
+  width: 40px;
+  height: 22px;
+  padding: 3px;
   flex-shrink: 0;
+}
+.search-health-toggle .switch:after {
+  width: 16px;
+  height: 16px;
+}
+.search-health-toggle .switch.on:after {
+  transform: translateX(18px);
+}
+.search-discovery > .sectionhead:first-child {
+  margin-top: 8px;
+}
+.filter-panel .category-grid {
+  margin-bottom: 0;
 }
 .search-edit-conditions {
   display: block;

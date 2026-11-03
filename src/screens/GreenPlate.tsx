@@ -582,6 +582,12 @@ function filterControls(forSearch = false) {
               "여러 개 선택할 수 있어요. 선택한 모든 조건에 맞는 식당을 보여드려요."
             }
           </p>
+          {forSearch && (
+            <fieldset>
+              <legend>음식 카테고리</legend>
+              {categoryControls(searchCategory, true)}
+            </fieldset>
+          )}
           {React.Children.toArray(
             ["식단", "알레르기", "이용 조건"].map((group) => (
               <fieldset>
@@ -743,33 +749,9 @@ function search() {
         <button type="submit" aria-label="검색 실행">
           {searchIcon}
         </button>
-      </form>
+        </form>
       {!searchSubmitted && (
         <section className="search-discovery" aria-label="검색 조건">
-          <div className="panel search-health-toggle">
-            <div>
-              <b>내 건강 맞춤 필터</b>
-              <small>설정한 건강 목표와 알레르기 조건을 적용해요.</small>
-            </div>
-            <button
-              className={"switch " + (safe ? "on" : "")}
-              aria-label="안전 필터"
-              aria-pressed={safe}
-              onClick={() => {
-                safe = !safe;
-                persist();
-                render();
-              }}
-            />
-          </div>
-          {categoryControls(searchCategory, true)}
-          {filterControls(true)}
-          <div className="sectionhead">
-            <h2>최근 검색어</h2>
-            <button className="text-action" onClick={clearRecent}>
-              모두 삭제
-            </button>
-          </div>
           <div className="row wrap recent-queries">
             {recentQueries.length ? (
               recentQueries.map((term, i) => (
@@ -786,7 +768,26 @@ function search() {
             ) : (
               <small>최근 검색어가 없어요.</small>
             )}
+            <button className="text-action recent-clear" onClick={clearRecent}>
+              모두 삭제
+            </button>
           </div>
+          <div className="panel search-health-toggle">
+            <div>
+              <small>설정한 건강 목표와 알레르기 조건을 적용해요.</small>
+            </div>
+            <button
+              className={"switch " + (safe ? "on" : "")}
+              aria-label="안전 필터"
+              aria-pressed={safe}
+              onClick={() => {
+                safe = !safe;
+                persist();
+                render();
+              }}
+            />
+          </div>
+          {filterControls(true)}
         </section>
       )}
       {searchSubmitted && (
